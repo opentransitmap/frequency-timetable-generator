@@ -167,13 +167,10 @@ def calculate_times(hour, start_time, duration):
 
     # Calculate end_time
     if end_time >= 60:
-        end_time = end_time - 60
-        hour =  hour + 1
-    elif end_time >= 120:
-        end_time = end_time - 120
-        hour =  hour + 2
+        hour = hour + int(end_time/60)
+        end_time = end_time%60
 
-    if end_time <= 10:
+    if end_time < 10:
         end_time = "0" + str(end_time)
     else:
         end_time = str(end_time)
