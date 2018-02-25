@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 import os, sys, csv, json, re, datetime, getopt
@@ -44,6 +44,7 @@ def main(argv):
     if folder == '':
         sys.stderr.write("Error: You have to specify a folder name.\n")
         sys.stderr.write('convert.py -f|--folder <folder> [-h|--per_hour]\n')
+        sys.stderr.write('Example: python3 convert.py -f \'example\'\n')
         sys.exit(2)
     
     # Load input csv file
@@ -96,12 +97,21 @@ def generate_json(input_data, header_data):
     
     # add header information
     if header_data is not None:
-        header_keys = ['start_date','end_date','excluded_lines','included_lines']
-        for key in header_keys:
+        recommended_header_keys = ['start_date','end_date']
+        for key in recommended_header_keys:
             if key in header_data:
                 output[key] = header_data[key]
             else:
-                sys.stderr.write("Warning: The header json file lacks the key '%s'.\nYou HAVE TO add it later manually.\n" % key)
+                sys.stderr.write("Warning: The header json file lacks the key '%s'.\nYou are recommended to add it later manually.\n" % key)
+
+        optional_header_keys = ['excluded_lines','included_lines']
+        for key in optional_header_keys:
+            if key in header_data:
+                output[key] = header_data[key]
+            else:
+                sys.stderr.write("Warning: The header json file lacks the key '%s'.\nYou can optionally add it later manually.\n" % key)
+
+
 
 	# add basic json structure
     output['updated'] = datetime.date.today().isoformat()
@@ -136,21 +146,29 @@ def generate_json(input_data, header_data):
         exceptions = data[CSV_IDX_EXCEPTIONS].split(";")
         if len(exceptions) == 1 and exceptions[0] == '':
             exceptions = []
-        
+
+        frequency = data[CSV_IDX_FREQUENCY]
+        if len(frequency) == 0:
+            frequency = 0
+        else:
+            frequency = float(frequency)
+
         # Prepare schedule
-        opening_hours = data[CSV_IDX_HOURS].split(";")
+        opening_weekdays_and_hours = data[CSV_IDX_HOURS].split(";")
         opening_services = {}
 
-        for i, d in enumerate(opening_hours):
+        for i, d in enumerate(opening_weekdays_and_hours):
 
             # Convert into understandable service schedules
-            (opening_service, opening_hour) = opening_hours[i].strip().split(' ')
+            (opening_service, opening_hours) = opening_weekdays_and_hours[i].strip().split(' ')
 
-            if opening_service in opening_services:
+            opening_hours = opening_hours.split('|')
+
+            if opening_service not in opening_services:
+                opening_services[opening_service] = []
+
+            for opening_hour in opening_hours:
                 opening_services[opening_service].append(opening_hour)
-            else:
-                opening_services[opening_service] = [opening_hour]
-            
             
         for opening_service in opening_services.keys():
             # output timetable information
@@ -158,7 +176,7 @@ def generate_json(input_data, header_data):
                 "from": fr,
                 "to": to,
                 "services": [opening_service],
-                "exeptions": exceptions,
+                "exceptions": exceptions,
                 "times": []
             }
             
@@ -175,7 +193,7 @@ def generate_json(input_data, header_data):
                 service["stations"] = [fr, to]
             
             for opening_hour in opening_services[opening_service]:
-                service["times"] += generate_times(opening_hour, int(data[CSV_IDX_DURATION]), intermediate_durations, float(data[CSV_IDX_FREQUENCY]))
+                service["times"] += generate_times(opening_hour, int(data[CSV_IDX_DURATION]), intermediate_durations, frequency)
             
             output["lines"][ref].append(service)
     
@@ -197,13 +215,14 @@ def generate_times(hour, duration, intermediate_durations, frequency):
             sys.stderr.write("Error: Some format error in the opening_hours. Please check your frequencies.csv.\n")
             sys.exit(0)
         (start_hour, start_min) = regex.groups()
-        (end_hour, end_min) = (start_hour, start_min)
+        times.append(calculate_times(int(start_hour), int(start_min), duration, intermediate_durations))
+        return times
 
     (start_hour, start_min, end_hour, end_min) = (int(start_hour), int(start_min), int(end_hour), int(end_min))
 
     # get number of minutes between public transport service
     if frequency == 0:
-        sys.stderr.write("Error: You can not use the value '0' for frequency. Please check your frequencies.csv.\n")
+        sys.stderr.write("Error: You can not use a blank value or the value '0' for frequency if time ranges are given. Please check your frequencies.csv.\n")
         sys.exit(0)
     
     if MODE_PER_HOUR:
@@ -266,4 +285,6 @@ def calculate_time(hour, start_time, duration):
     
 
 if __name__ == "__main__":
+    if sys.version_info[0] < 3:
+        raise Exception("Python 3 or a more recent version is required.")
     main(sys.argv[1:])
