@@ -1,11 +1,8 @@
-easy-timetable-generator
+Frequency Timetable Generator
 ========================
 
 This script generates timetable information for a bus system based on frequencies
 to a json suitable for the use with [osm2gtfs](https://github.com/grote/osm2gtfs).
-As a starting point, [xamanu/timetable-csv2json](https://github.com/xamanu/timetable-csv2json) has been used,
-but then changed quite a lot to support a more general and specific input format.
-In some near future, could be integrated into [osm2gtfs](https://github.com/grote/osm2gtfs) to support frequency data.
 
 Please make sure you use Python 3 to run it.
 
